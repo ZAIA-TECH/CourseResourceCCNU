@@ -1,0 +1,94 @@
+import random
+from math import cos, pi
+import timeit
+import matplotlib.pyplot as plt
+
+# 粒子群算法参数
+PSO_PARTICLE_COUNT = 30000          # 粒子群算法粒子数量
+PSO_ITERATIONS = 10000              # 粒子群算法迭代次数
+
+# 配置 matplotlib 支持中文字符
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 使用中文字体
+plt.rcParams['axes.unicode_minus'] = False    # 解决负号显示问题
+
+# 生成随机个体
+def generate_random_individual():
+    return [random.uniform(-1.024, 1.024) for _ in range(2)]
+
+# 计算个体适应度
+def evaluate_fitness(individual):
+    x1, x2 = individual
+    return 4 - (x1**2 + 2*x2**2 - 0.3*cos(3*pi*x1) - 0.4*cos(4*pi*x2))
+
+# 初始化粒子群
+def initialize_particles(particle_count):
+    return [{'position': generate_random_position(), 'velocity': generate_random_velocity(), 'best_position': generate_random_position()} for _ in range(particle_count)]
+
+# 生成随机位置
+def generate_random_position():
+    return [random.uniform(-1.024, 1.024) for _ in range(2)]
+
+# 生成随机速度
+def generate_random_velocity():
+    return [random.uniform(-0.5, 0.5) for _ in range(2)]
+
+# 更新粒子速度
+def update_velocity(particle, global_best_position, inertia_weight, cognitive_factor, social_factor):
+    for i in range(len(particle['velocity'])):
+        r1, r2 = random.uniform(0, 1), random.uniform(0, 1)
+        cognitive_component = cognitive_factor * r1 * (particle['best_position'][i] - particle['position'][i])
+        social_component = social_factor * r2 * (global_best_position[i] - particle['position'][i])
+        particle['velocity'][i] = inertia_weight * particle['velocity'][i] + cognitive_component + social_component
+
+# 更新粒子位置
+def update_position(particle):
+    for i in range(len(particle['position'])):
+        particle['position'][i] = particle['position'][i] + particle['velocity'][i]
+
+# 寻找全局最优位置
+def find_global_best_position(particles):
+    return max(particles, key=lambda x: evaluate_fitness(x['position']))['position']
+
+# 粒子群算法
+def particle_swarm_optimization(particle_count, iterations):
+    particles = initialize_particles(particle_count)
+    global_best_position = find_global_best_position(particles)
+    inertia_weight = 0.9
+    cognitive_factor = 1.5
+    social_factor = 1.5
+    best_fitness_values = []
+
+    for iteration in range(iterations):
+        for particle in particles:
+            # 更新粒子速度和位置
+            update_velocity(particle, global_best_position, inertia_weight, cognitive_factor, social_factor)
+            update_position(particle)
+            # 更新粒子的最佳位置
+            particle_fitness = evaluate_fitness(particle['position'])
+            if particle['best_position'] is None or particle_fitness > evaluate_fitness(particle['best_position']):
+                particle['best_position'] = particle['position']
+
+        global_best_position = find_global_best_position(particles)
+        best_fitness_values.append(evaluate_fitness(global_best_position))
+
+    return best_fitness_values, global_best_position
+
+# 测量粒子群算法运行时间
+start_time = timeit.default_timer()
+pso_fitness_values, best_solution_pso = particle_swarm_optimization(particle_count=PSO_PARTICLE_COUNT, iterations=PSO_ITERATIONS)
+end_time = timeit.default_timer()
+
+pso_time = (end_time - start_time) * 1000  # 转换为毫秒
+print(f"粒子群算法运行时间: {pso_time:.4f} 毫秒")
+
+# 绘制收敛曲线
+plt.figure(figsize=(12, 6))
+plt.plot(range(PSO_ITERATIONS), pso_fitness_values, label='粒子群算法')
+plt.xlabel('迭代次数/代数')
+plt.ylabel('适应度值')
+plt.title('收敛性能比较')
+plt.legend()
+plt.show()
+
+print("\n粒子群算法最优解:", best_solution_pso)
+print("最优值 (粒子群算法):", evaluate_fitness(best_solution_pso))

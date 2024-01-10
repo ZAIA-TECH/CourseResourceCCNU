@@ -1,0 +1,99 @@
+import random
+from math import cos, pi
+import timeit
+import matplotlib.pyplot as plt
+from matplotlib.font_manager import FontProperties
+
+# 遗传算法参数
+GENETIC_POPULATION_SIZE = 100      # 遗传算法种群大小
+GENETIC_GENERATIONS = 1000         # 遗传算法迭代次数
+GENETIC_CROSSOVER_PROB = 0.3       # 遗传算法交叉概率
+GENETIC_MUTATION_PROB = 0.3       # 遗传算法变异概率
+
+# 配置 matplotlib 支持中文字符
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 使用中文字体
+plt.rcParams['axes.unicode_minus'] = False    # 解决负号显示问题
+
+# 计时装饰器
+def timing_decorator(func):
+    def wrapper(*args, **kwargs):
+        start_time = timeit.default_timer()
+        result = func(*args, **kwargs)
+        end_time = timeit.default_timer()
+        time_taken = end_time - start_time
+        return result, time_taken
+    return wrapper
+
+# 生成随机个体
+def generate_random_individual():
+    return [random.uniform(-1.024, 1.024) for _ in range(2)]
+
+# 计算个体适应度
+def evaluate_fitness(individual):
+    x1, x2 = individual
+    return 4 - (x1**2 + 2*x2**2 - 0.3*cos(3*pi*x1) - 0.4*cos(4*pi*x2))
+
+# 选择父代
+def select_parents(population, fitness_values):
+    selected_parents = random.choices(population, weights=fitness_values, k=len(population))
+    return selected_parents
+
+# 交叉操作
+def crossover(parent1, parent2):
+    if random.uniform(0, 1) < GENETIC_CROSSOVER_PROB:
+        crossover_point = random.randint(0, len(parent1) - 1)
+        child1 = parent1[:crossover_point] + parent2[crossover_point:]
+        child2 = parent2[:crossover_point] + parent1[crossover_point:]
+        return child1, child2
+    else:
+        return parent1, parent2
+
+# 变异操作
+def mutate(individual):
+    if random.uniform(0, 1) < GENETIC_MUTATION_PROB:
+        mutation_point = random.randint(0, len(individual) - 1)
+        individual[mutation_point] = random.uniform(-1.024, 1.024)
+    return individual
+
+# 遗传算法
+@timing_decorator
+def genetic_algorithm(population_size, generations):
+    population = [generate_random_individual() for _ in range(population_size)]
+    best_fitness_values = []
+
+    for generation in range(generations):
+        fitness_values = [evaluate_fitness(individual) for individual in population]
+        best_fitness_values.append(max(fitness_values))
+        parents = select_parents(population, fitness_values)
+
+        offspring = []
+        for i in range(0, len(parents), 2):
+            parent1, parent2 = parents[i], parents[i+1]
+            child1, child2 = crossover(parent1, parent2)
+            child1 = mutate(child1)
+            child2 = mutate(child2)
+            offspring.extend([child1, child2])
+
+        population = offspring
+
+    best_individual = max(population, key=evaluate_fitness)
+    return best_fitness_values, best_individual
+
+# 运行遗传算法
+genetic_result, genetic_time_taken = genetic_algorithm(population_size=GENETIC_POPULATION_SIZE, generations=GENETIC_GENERATIONS)
+
+# 输出遗传算法的开销时间（单位为毫秒）
+print(f"遗传算法运行时间：{genetic_time_taken * 1000:.4f} 毫秒")
+
+# 输出遗传算法的结果
+print("遗传算法最优解:", genetic_result[1])
+print("最优值 (遗传算法):", evaluate_fitness(genetic_result[1]))
+
+# 绘制收敛曲线
+plt.figure(figsize=(12, 6))
+plt.plot(range(GENETIC_GENERATIONS), genetic_result[0], label='遗传算法')
+plt.xlabel('迭代次数/代数')
+plt.ylabel('适应度值')
+plt.title('收敛性能比较')
+plt.legend()
+plt.show()
